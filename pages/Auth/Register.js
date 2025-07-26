@@ -1,0 +1,258 @@
+import React,{useState} from "react";
+import Head from "next/head";
+import styled from "styled-components";
+import Cookies from "js-cookie";
+import FrontLayout from "@components/Layouts/Frontend";
+import {API_STATUS,APP_NAME,APP_SLUG,BASE_URL,ROLES,TOAST_OPTIONS,WIDTH} from "@constants/Common";
+import colors from "@constants/Colors";
+import {eyeIcon,eyeCloseIcon} from "@helpers/Icons";
+import {hasValidationError,validationError,focusOnFeild,checkRolesCode} from "@helpers/Frontend";
+import axios from "@utils/axios";
+import {AUTH} from "@constants/ApiConstant";
+import {toast} from "react-toastify";
+import CustomHeading from "@components/styled/Heading";
+const Wrapper = styled.div`
+   width:100%;display:flex;box-sizing:border-box;position:relative;background-size:cover;background-repeat:no-repeat;background-position:center;
+    & .inner{
+        width:${WIDTH};max-width:100%;padding:40px 20px;margin:0 auto;box-sizing:border-box;display:flex;align-items:center;justify-content:center;
+        & .form{
+            width:800px;padding:40px;display:flex;flex-direction:column;justify-content:center;position:relative;box-sizing:border-box;backdrop-filter:blur(8px);border:1px solid ${colors.BORDER};border-radius:8px;background:${colors.WHITE};
+            & .submit-wrap{
+                display:flex;align-items:center;justify-content:center;
+                & .submit{
+                    padding:0 30px;height:40px;color:${colors.WHITE};font-size:16px;font-weight:400;cursor:pointer;border:none;background:${colors.RED};border-radius:6px;margin-top:30px;transition:.2s;
+                    &:hover{background:${colors.LIGHTGREEN};}
+                }
+            }
+            & .label,
+            & input{color:${colors.BLACK};}
+            & .no-wrap{
+                font-size:16px;color:${colors.BLACK};display:flex;align-items:center;justify-content:center;column-gap:6px;margin-top:40px;
+                & .link{
+                    font-weight:600;cursor:pointer;color:${colors.RED};transition:.2s;
+                    &:hover{color:${colors.RED};}
+                }
+            }
+        }
+    }
+    @media(max-width:767px){
+        & .inner{
+            justify-content:center;
+            & .banner{display:none;}
+            & .form{
+                padding:30px;
+                .row-group{flex-direction:column;}
+                & .no-wrap{margin-top:30px;}
+            }
+        }
+    }
+    @media(max-width:479px){
+        & .inner{
+            & .form{
+                & .submit-wrap{
+                    & .submit{padding:0 20px;height:35px;font-size:14px;margin-top:10px;}
+                }
+                & .no-wrap{
+                    font-size:14px;column-gap:6px;
+                    & .link{font-weight:500;}
+                }
+            }
+        }
+    }
+`;
+const Register = () => {
+    const [form,setForm] = useState({first_name: "",last_name: "",email: "",password: "",confirm_password: ""});
+    const [errors,setErrors] = useState([]);
+    const [passwordVisible,setPasswordVisible] = useState(false);
+    const [confirmPasswordVisible,setConfirmPasswordVisible] = useState(false);
+    const [submitting,setSubmitting] = useState(false);
+    const onChange = (e) => {
+        const {name,value} = e.target;
+        if(name == "first_name" || name == "last_name"){
+            if(value == "" || (value && value.length <= 100)){
+                handleCustom(name,value);
+            }
+        }else if(name == "email"){
+            if(value == "" || (value && value.length <= 50)){
+                handleCustom(name,value);
+            }
+        }else if(name == "password" || name == "confirm_password"){
+            if(value == "" || (value && value.length <= 30)){
+                handleCustom(name,value);
+            }
+        }else{
+            handleCustom(name,value);
+        }
+    }
+    const handleCustom = (name,value) => {
+        setForm((prevState) => ({...prevState,[name]: value}));
+    }
+    const onSubmit = (e) => {
+        e.preventDefault();
+        if(submitting){
+            return;
+        }
+        if(!validate()){
+            return;
+        }
+        handleLoginSubmit();
+    }
+    const validate = () => {
+        const newError = {};
+        let positionFocus = "";
+        const emailReg = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+        const passRegix = /^(?=.*\d)(?=.*[!@#$%^&*])(?=.*[a-z])(?=.*[A-Z]).{8,}$/;
+        if(!form.first_name || !form.first_name.trim()){
+            newError["first_name"] = "Required";
+            positionFocus = positionFocus || "first_name";
+        }else if(form.first_name && form.first_name.length > 100){
+            newError["first_name"] = "Maximum 100 characters allowed";
+            positionFocus = positionFocus || "first_name";
+        }
+        if(!form.last_name || !form.last_name.trim()){
+            newError["last_name"] = "Required";
+            positionFocus = positionFocus || "last_name";
+        }else if(form.last_name && form.last_name.length > 100){
+            newError["last_name"] = "Maximum 100 characters allowed";
+            positionFocus = positionFocus || "last_name";
+        }
+        if(!form.email || !form.email.trim()){
+            newError["email"] = "Required";
+            positionFocus = positionFocus || "email";
+        }else if(form.email && form.email.length > 50){
+            newError["email"] = "Maximum 50 characters allowed";
+            positionFocus = positionFocus || "email";
+        }else if(!emailReg.test(form.email)){
+            newError["email"] = "Enter a valid email";
+            positionFocus = positionFocus || "email";
+        }
+        if(!form.password || !form.password.trim()){
+            newError["password"] = "Required";
+            positionFocus = positionFocus || "password";
+        }else if(form.password && form.password.length > 30){
+            newError["password"] = "Maximum 30 characters allowed";
+            positionFocus = positionFocus || "password";
+        }else if(form.password && !passRegix.test(form.password)){
+            newError["password"] = "Password must have at least 8 character and contain at least one of each: uppercase letter, one lowercase letter, number, and symbol.";
+            positionFocus = positionFocus || "password";
+        }
+        if(!form.confirm_password || !form.confirm_password.trim()){
+            newError["confirm_password"] = "Required";
+            positionFocus = positionFocus || "confirm_password";
+        }else if(form.confirm_password && form.confirm_password.length > 30){
+            newError["confirm_password"] = "Maximum 30 characters allowed";
+            positionFocus = positionFocus || "confirm_password";
+        }
+        if(form.password && form.confirm_password && form.password != form.confirm_password){
+            newError["confirm_password"] = "Password does not match.";
+            positionFocus = positionFocus || "confirm_password";
+        }
+        setErrors(newError);
+        if(positionFocus){
+            focusOnFeild(positionFocus);
+            return false;
+        }
+        return true;
+    }
+    const handleLoginSubmit = async() => {
+        try{
+            setSubmitting(true);
+            document.getElementById("custom-loader").style.display = "block";
+            const {data} = await axios.post(AUTH.REGISTER,form);
+            if(data.status == API_STATUS.SUCCESS){
+                const {user,token} = data;
+                Cookies.set(`${APP_SLUG}-user`,JSON.stringify(user));
+                Cookies.set(`${APP_SLUG}-token`,token);
+                document.getElementById("custom-loader").style.display = "none";
+                if(user.membership){
+                    window.location = `${BASE_URL}/user/my-account`;
+                }else{
+                    window.location = `${BASE_URL}/payment`;
+                }
+            }else if(data.status == API_STATUS.UNPROCESSABLE_ENTITY){
+                setSubmitting(false);
+                document.getElementById("custom-loader").style.display = "none";
+                setErrors(data.errors);
+            }else{
+                setSubmitting(false);
+                document.getElementById("custom-loader").style.display = "none";
+                toast.error(data.message,TOAST_OPTIONS);
+            }
+        }catch(e){
+            setSubmitting(false);
+            document.getElementById("custom-loader").style.display = "none";
+            if(e.response && e.response.data.message){
+                toast.error(e.response.data.message,TOAST_OPTIONS);
+            }
+        }
+    }
+    return (
+        <React.Fragment>
+            <Head>
+                <title>{`Register - ${APP_NAME}`}</title>
+                <meta name="description" content="Login"/>
+            </Head>
+            <FrontLayout page="register">
+                <Wrapper>
+                    <div className="inner">
+                        <form onSubmit={onSubmit} autoComplete="off" className="form">
+                            <CustomHeading color={colors.BLACK} margin="0 0 30px" r767Margin="0 0 20px">Register</CustomHeading>
+                            <div className="row-group">
+                                <div className="form-group">
+                                    <label className="label">First Name</label>
+                                    <input className={hasValidationError(errors,"first_name") ? "has-input-error" : ""} type="text" name="first_name" onChange={onChange} value={form.first_name}/>
+                                    {hasValidationError(errors,"first_name") ? (<span className="has-cust-error">{validationError(errors,"first_name")}</span>) : null}
+                                </div>
+                                <div className="form-group">
+                                    <label className="label">Last Name</label>
+                                    <input className={hasValidationError(errors,"last_name") ? "has-input-error" : ""} type="text" name="last_name" onChange={onChange} value={form.last_name}/>
+                                    {hasValidationError(errors,"last_name") ? (<span className="has-cust-error">{validationError(errors,"last_name")}</span>) : null}
+                                </div>
+                            </div>
+                            <div className="form-group">
+                                <label className="label">Email Address</label>
+                                <input className={hasValidationError(errors,"email") ? "has-input-error" : ""} type="text" name="email" onChange={onChange} value={form.email}/>
+                                {hasValidationError(errors,"email") ? (<span className="has-cust-error">{validationError(errors,"email")}</span>) : null}
+                            </div>
+                            <div className="row-group">
+                                <div className="form-group">
+                                    <label className="label">Password</label>
+                                    <div className="password-wrap">
+                                        <input className={hasValidationError(errors,"password") ? "has-input-error" : ""} type={passwordVisible ? "text" : "password"} name="password" onChange={onChange} value={form.password}/>
+                                        <button type="button" onClick={() => setPasswordVisible(!passwordVisible)} className="visibility">
+                                            {passwordVisible ? (
+                                                eyeIcon({width:18,height:18,fill:colors.TEXT})
+                                            ) : (
+                                                eyeCloseIcon({width:18,height:18,fill:colors.TEXT})
+                                            )}
+                                        </button>
+                                    </div>
+                                    {hasValidationError(errors,"password") ? (<span className="has-cust-error">{validationError(errors,"password")}</span>) : null}
+                                </div>
+                                <div className="form-group">
+                                    <label className="label">Confirm Password</label>
+                                    <div className="password-wrap">
+                                        <input className={hasValidationError(errors,"confirm_password") ? "has-input-error" : ""} type={confirmPasswordVisible ? "text" : "password"} name="confirm_password" onChange={onChange} value={form.confirm_password}/>
+                                        <button type="button" onClick={() => setConfirmPasswordVisible(!confirmPasswordVisible)} className="visibility">
+                                            {confirmPasswordVisible ? (
+                                                eyeIcon({width:18,height:18,fill:colors.TEXT})
+                                            ) : (
+                                                eyeCloseIcon({width:18,height:18,fill:colors.TEXT})
+                                            )}
+                                        </button>
+                                    </div>
+                                    {hasValidationError(errors,"confirm_password") ? (<span className="has-cust-error">{validationError(errors,"confirm_password")}</span>) : null}
+                                </div>
+                            </div>
+                            <div className="submit-wrap">
+                                <button type="submit" className="submit">Submit</button>
+                            </div>
+                            <div className="no-wrap">Already have an account? <a href={`${BASE_URL}/login`} className="link">Sign in</a></div>
+                        </form>
+                    </div>
+                </Wrapper>
+            </FrontLayout>
+        </React.Fragment>
+    );
+}
+export default Register;

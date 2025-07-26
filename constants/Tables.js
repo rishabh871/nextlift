@@ -1,0 +1,20 @@
+module.exports = {
+    BOT_REQUESTS: "tbl_bot_requests",
+    CITIES: "tbl_cities",
+    COUNTRIES: "tbl_countries",
+    EMAIL_LOGS: "tbl_email_logs",
+    FAQS: "tbl_faqs",
+    MEDIA: "tbl_medias",
+    MEMBERSHIPS: "tbl_memberships",
+    PAGES: "tbl_pages",
+    PASSWORD_RESET: "tbl_password_resets",
+    ROLES: "tbl_roles",
+    ROUTES: "tbl_routes",
+    ROUTE_STOPS: "tbl_route_stops",
+    STATES: "tbl_states",
+    STOP_WORDS: "tbl_stop_words",
+    TRANSACTIONS: "tbl_transactions",
+    USERS: "tbl_users",
+    USER_HAS_ROLES: "tbl_user_has_roles",
+    WEBHOOKS: "tbl_webhooks"
+}
